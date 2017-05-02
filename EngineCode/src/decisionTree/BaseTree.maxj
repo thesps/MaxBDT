@@ -1,0 +1,17 @@
+package decisionTree;
+
+public class BaseTree{
+	int[] features;
+	int[] childrenLeft;
+	int[] childrenRight;
+	double[] thresholds;
+	double[] values;
+	public BaseTree(int[] features, int[] childrenLeft, int[] childrenRight,
+			double[] thresholds, double[] values){
+		this.features = features;
+		this.childrenLeft = childrenLeft;
+		this.childrenRight = childrenRight;
+		this.thresholds = thresholds;
+		this.values = values;
+	}
+}

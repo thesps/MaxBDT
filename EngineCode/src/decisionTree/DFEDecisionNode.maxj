@@ -1,0 +1,106 @@
+package decisionTree;
+
+import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelLib;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
+
+public class DFEDecisionNode extends KernelLib{
+
+	Kernel kernel;
+	int i;
+	int feature;
+	double threshold;
+	double value;
+	DFEDecisionNode childLeft = null;
+	DFEDecisionNode childRight = null;
+	DFEDecisionNode parent = null;
+	DFEVar comparison = null;
+	DFEVar Ncomparison = null; // Negated comparison
+	DFEVar depthFirstComparison = null;
+
+	public DFEDecisionNode(Kernel kernel, DFEDecisionNode parent, int i, int feature, double threshold, double value){
+		super(kernel);
+		this.kernel = kernel;
+		this.parent = parent;
+		this.i = i; // index in tree structure
+		this.feature = feature;
+		this.threshold = threshold;
+		this.value = value;
+	}
+
+	boolean isLeaf(){
+		return (this.childLeft == null) && (this.childRight == null);
+	}
+
+	public DFEVar nodeOnlyCompare(DFEVector<DFEVar> X){
+		DFEVar[] x = new DFEVar[X.getSize()];
+		for(int i = 0; i < X.getSize(); i++)
+			x[i] = X[i];
+		return nodeOnlyCompare(x);
+	}
+	public DFEVar nodeOnlyCompare(DFEVar[] X){
+		// Only make the comparison once, and only make it for non-leaves
+		if((!this.isLeaf()) && (this.comparison == null)){
+			this.comparison = X[this.feature] <= this.threshold;
+			this.Ncomparison = ~this.comparison;
+		}
+		return this.comparison;
+	}
+
+	public DFEVar depthFirstCompare(){
+		DFEVar value;
+		// If comparison already computed, just return it
+		if(this.depthFirstComparison != null){
+			return this.depthFirstComparison;
+		}
+		if(this.parent == null){ // root node
+			value = constant.var(dfeBool(), 1);
+		}else{
+			if(this == this.parent.childLeft){ // this is the left child
+				value = this.parent.depthFirstCompare() & this.parent.comparison;
+			}else{ // this is the right child
+				value = this.parent.depthFirstCompare() & this.parent.Ncomparison;
+			}
+		}
+		this.depthFirstComparison = value;
+		return value;
+	}
+
+	public DFEDecisionNode childLeft(DFEDecisionNode child){
+		if(child == null){
+			return this.childLeft;
+		}else{
+			this.childLeft = child;
+			return child;
+		}
+	}
+
+	public DFEDecisionNode childRight(DFEDecisionNode child){
+		if(child == null){
+			return this.childRight;
+		}else{
+			this.childRight = child;
+			return child;
+		}
+	}
+
+	public static DFEDecisionNode addChildLeftFirst(DFEDecisionNode parent, DFEDecisionTree tree){
+		int iC; // child index in basetree
+		DFEDecisionNode newNode = parent;
+		if(parent.childLeft == null){
+			iC = tree.baseTree.childrenLeft[parent.i];
+			if(iC != -1){
+				newNode = new DFEDecisionNode(parent.kernel, parent, iC, tree.baseTree.features[iC], tree.baseTree.thresholds[iC], tree.baseTree.values[iC]);
+				parent.childLeft(newNode);
+			}
+		}else if(parent.childRight == null){
+			iC = tree.baseTree.childrenRight[parent.i];
+			if(iC != -1){
+				newNode = new DFEDecisionNode(parent.kernel, parent, iC, tree.baseTree.features[iC], tree.baseTree.thresholds[iC], tree.baseTree.values[iC]);
+				parent.childRight(newNode);
+			}
+		}
+		return newNode;
+	}
+}

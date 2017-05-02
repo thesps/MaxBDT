@@ -1,0 +1,37 @@
+package decisionTree;
+
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEType;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFETypeFactory;
+
+public class BDTParams{
+
+	public int nTrees;
+	public int nFeatures;
+	public double learningRate;
+	public double initPredict;
+	public DFEType[] TX;
+	public DFEType Tscore;
+	public static DFEType Tdefault = DFETypeFactory.dfeFloat(8, 24);
+
+	public BDTParams(int nTrees, int nFeatures, double learningRate, double initPredict, DFEType[] TX, DFEType Tscore){
+		this.nTrees = nTrees;
+		this.nFeatures = nFeatures;
+		this.learningRate = learningRate;
+		this.initPredict = initPredict;
+		this.TX = TX;
+		this.Tscore = Tscore;
+	}
+
+	public BDTParams(int nTrees, int nFeatures, double learningRate, double initPredict, DFEType TX, DFEType Tscore){
+		this.nTrees = nTrees;
+		this.nFeatures = nFeatures;
+		this.learningRate = learningRate;
+		this.initPredict = initPredict;
+		DFEType[] TXs = new DFEType[nFeatures];
+		for(int i = 0; i < nFeatures; i++){
+			TXs[i] = TX;
+		}
+		this.TX = TXs;
+		this.Tscore = Tscore;
+	}
+}

@@ -1,0 +1,114 @@
+package decisionTree;
+
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+
+import com.maxeler.maxcompiler.v2.build.EngineParameters;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEFix.SignMode;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFETypeFactory;
+import com.maxeler.maxcompiler.v2.managers.custom.CustomManager;
+import com.maxeler.maxcompiler.v2.managers.custom.DFELink;
+import com.maxeler.maxcompiler.v2.managers.custom.blocks.KernelBlock;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.CPUTypes;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.EngineInterface;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.InterfaceParam;
+
+public class BDTManager extends CustomManager{
+
+	public static void main(String[] args){
+		EngineParameters params = new EngineParameters(args);
+
+		// Read the BDT from the JSON file
+		JSONParser parser = new JSONParser();
+		BaseTree[] baseTrees = new BaseTree[1];
+		int nTrees = 0;
+		int nFeatures = 0;
+		double learningRate = 0.;
+		double initPredict = 0.;
+		try {
+			Object obj = parser.parse(new FileReader("/home/sioni/tmtt_analysis/fakereduction/bdtjson.txt"));
+			JSONObject jsonObj = (JSONObject) obj;
+			JSONArray trees = (JSONArray) jsonObj.get("trees");
+			nTrees = trees.size();
+			nFeatures = (int) (long) (Long) jsonObj.get("nFeatures");
+			learningRate = (Double) jsonObj.get("learningRate");
+			initPredict = (Double) jsonObj.get("initPredict");
+			baseTrees = new BaseTree[nTrees];
+			System.out.println("Building " + nTrees + " trees");
+			for(int j = 0; j < nTrees; j++){
+				JSONObject tree = (JSONObject) trees.get(j);
+				JSONArray Jfeatures = (JSONArray) tree.get("features");
+				JSONArray JchildrenLeft = (JSONArray) tree.get("childrenLeft");
+				JSONArray JchildrenRight = (JSONArray) tree.get("childrenRight");
+				JSONArray Jvalues = (JSONArray) tree.get("values");
+				JSONArray Jthresholds = (JSONArray) tree.get("thresholds");
+				int nNodes = Jfeatures.size();
+				int[] features = new int[nNodes];
+				int[] childrenLeft = new int[nNodes];
+				int[] childrenRight = new int[nNodes];
+				double[] thresholds = new double[nNodes];
+				double[] values = new double[nNodes];
+				for(int i = 0; i < nNodes; i++){
+					features[i] = (int) (long)(Long) Jfeatures.get(i);
+					childrenLeft[i] = (int) (long) (Long) JchildrenLeft.get(i);
+					childrenRight[i] = (int) (long)(Long) JchildrenRight.get(i);
+					values[i] = (Double) Jvalues.get(i);
+					thresholds[i] = (Double) Jthresholds.get(i);
+				}
+				baseTrees[j] = new BaseTree(features, childrenLeft, childrenRight, thresholds, values);
+				/*if(j < 5){
+					for(int k = 0; k < values.length; k++){
+						System.out.print(values[k] + ", ");
+					}
+					System.out.print("\n");
+				}*/
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
+
+		BDTParams bdtParams = new BDTParams(nTrees, nFeatures, learningRate, initPredict, DFETypeFactory.dfeFloat(8, 24), DFETypeFactory.dfeFix(7, 25, SignMode.TWOSCOMPLEMENT));
+		BDTManager manager = new BDTManager(params, bdtParams, baseTrees);
+		manager.createSLiCinterface(interfaceDefault(bdtParams));
+		manager.build();
+	}
+
+	public BDTManager(EngineParameters engineParams, BDTParams bdtParams, BaseTree[] baseTrees) {
+		super(engineParams);
+		getCurrentKernelConfig().debug.setEnableLatencyAnnotation(true);
+		KernelBlock bdtKernel = addKernel(new BDTKernel(makeKernelParameters("BDTKernel"), bdtParams, baseTrees));
+		DFELink[] X = new DFELink[bdtParams.nFeatures];
+		for(int i = 0; i < bdtParams.nFeatures; i++){
+			X[i] = addStreamFromCPU("X"+i);
+			bdtKernel.getInput("X"+i) <== X[i];
+		}
+
+		DFELink score = addStreamToCPU("score");
+		score <== bdtKernel.getOutput("score");
+	}
+
+	private static EngineInterface interfaceDefault(BDTParams bdtParams) {
+		EngineInterface engine_interface = new EngineInterface();
+		CPUTypes   type = CPUTypes.FLOAT;
+		CPUTypes   tScore = CPUTypes.INT32;
+		int        size = type.sizeInBytes();
+
+		InterfaceParam N = engine_interface.addParam("N", CPUTypes.INT32);
+		engine_interface.setTicks("BDTKernel", N);
+		for(int i = 0; i < bdtParams.nFeatures; i++){
+			engine_interface.setStream("X"+i,   type, N * size);
+		}
+		engine_interface.setStream("score",   tScore, N * size);
+		return engine_interface;
+	}
+}

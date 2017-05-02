@@ -1,0 +1,98 @@
+package decisionTree;
+
+import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelLib;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEType;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
+
+public class DFEDecisionTree extends KernelLib{
+
+	Kernel kernel;
+	BaseTree baseTree;
+	DFEDecisionNode[] nodes;
+	DFEType Tscore;
+	double learningRate = 1.;
+	DFEVar[] leafValues;
+
+	public DFEDecisionTree(Kernel kernel, BaseTree baseTree, DFEType Tscore){
+		super(kernel);
+		this.kernel = kernel;
+		this.baseTree = baseTree;
+		this.nodes = constructTree();
+		this.Tscore = Tscore;
+	}
+
+	public void learningRate(double rate){
+		this.learningRate = rate;
+	}
+
+	public DFEVar decisionFunction(DFEVector<DFEVar> X){
+		DFEVar[] x = new DFEVar[X.getSize()];
+		for(int i = 0; i < X.getSize(); i++)
+			x[i] = X[i];
+		return decisionFunction(x);
+	}
+
+	public DFEVar decisionFunction(DFEVar[] X){
+		for(DFEDecisionNode node : nodes)
+			node.nodeOnlyCompare(X);
+		DFEDecisionNode[] leaves = leaves();
+		DFEVar[] leafValues = new DFEVar[leaves.length];
+		DFEVar leafDecision = leaves[0].depthFirstCompare();
+		for(int i = 0; i < leaves.length; i++){
+			leafValues[leaves.length - i - 1] = constant.var(Tscore, leaves[i].value * this.learningRate);
+			//System.out.println(leaves[i].value);// * this.learningRate);
+			if(i > 0)
+				leafDecision = leafDecision # leaves[i].depthFirstCompare();
+		}
+		this.leafValues = leafValues;
+		return control.oneHotMux(leafDecision, leafValues);
+
+	}
+
+	public DFEDecisionNode[] leaves(){
+		int nLeaves = 0;
+		for(DFEDecisionNode node : this.nodes){
+			nLeaves += node.isLeaf() ? 1 : 0;
+		}
+		DFEDecisionNode[] leaves = new DFEDecisionNode[nLeaves];
+		int iLeaf = 0;
+		for(DFEDecisionNode node : this.nodes){
+			if(node.isLeaf()){
+				leaves[iLeaf++] = node;
+			}
+		}
+		return leaves;
+	}
+
+	private DFEDecisionNode[] constructTree(){
+		int iN = 0;
+		DFEDecisionNode[] nodes = new DFEDecisionNode[baseTree.childrenLeft.length];
+		DFEDecisionNode n = new DFEDecisionNode(kernel, null, iN, baseTree.features[iN], baseTree.thresholds[iN], baseTree.values[iN]);
+		nodes[0] = n;
+		boolean done = false;
+		while(!done){
+			if((n.i== 0) && (n.childLeft != null) && (n.childRight != null)){
+				// At the root node with both children, so done
+				done = true;
+				break;
+			}
+			if((baseTree.childrenLeft[n.i] == -1) | ((n.childLeft != null) && (n.childRight != null))) // Need to ascend
+				n = n.parent;
+			DFEDecisionNode lastN = n;
+			n = DFEDecisionNode.addChildLeftFirst(n, this);
+			if(n != lastN){ // A new node was added
+				nodes[++iN] = n;
+			}
+		}
+		return nodes;
+	}
+
+
+
+
+
+
+
+}

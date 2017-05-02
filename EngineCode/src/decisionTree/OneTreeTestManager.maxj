@@ -1,0 +1,55 @@
+package decisionTree;
+
+import static com.maxeler.maxcompiler.v2.managers.standard.Manager.link;
+
+import com.maxeler.maxcompiler.v2.build.EngineParameters;
+import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.CPUTypes;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.EngineInterface;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.InterfaceParam;
+import com.maxeler.maxcompiler.v2.managers.standard.IOLink.IODestination;
+import com.maxeler.maxcompiler.v2.managers.standard.Manager;
+
+public class OneTreeTestManager{
+
+	private static int nFeatures = 4;
+
+	public static void main(String[] args){
+		EngineParameters params = new EngineParameters(args);
+		Manager manager = new Manager(params);
+		manager.getCurrentKernelConfig().debug.setEnableLatencyAnnotation(true);
+		Kernel kernel = new OneTreeTestKernel(manager.makeKernelParameters("OneTreeTestKernel"));
+		manager.setKernel(kernel);
+		manager.setIO(
+				link("X0", IODestination.CPU),
+				link("X1", IODestination.CPU),
+				link("X2", IODestination.CPU),
+				link("X3", IODestination.CPU),
+				link("score", IODestination.CPU)
+				);
+		manager.createSLiCinterface(interfaceDefault());
+		configBuild(manager, params);
+		manager.build();
+	}
+
+	private static EngineInterface interfaceDefault(){
+		EngineInterface ei = new EngineInterface();
+		InterfaceParam nData = ei.addParam("dataSize", CPUTypes.INT32);
+		ei.setTicks("OneTreeTestKernel", nData);
+		ei.setStream("X0", CPUTypes.FLOAT, nData * CPUTypes.FLOAT.sizeInBytes());
+		ei.setStream("X1", CPUTypes.FLOAT, nData * CPUTypes.FLOAT.sizeInBytes());
+		ei.setStream("X2", CPUTypes.FLOAT, nData * CPUTypes.FLOAT.sizeInBytes());
+		ei.setStream("X3", CPUTypes.FLOAT, nData * CPUTypes.FLOAT.sizeInBytes());
+		ei.setStream("score", CPUTypes.FLOAT, nData * CPUTypes.FLOAT.sizeInBytes());
+		return ei;
+	}
+
+	private static void configBuild(Manager manager, EngineParameters params){
+		manager.setEnableStreamStatusBlocks(false);
+		BuildConfig buildConfig = manager.getBuildConfig();
+		buildConfig.setMPPRCostTableSearchRange(params.getMPPRStartCT(), params.getMPPREndCT());
+		buildConfig.setMPPRParallelism(params.getMPPRThreads());
+		buildConfig.setMPPRRetryNearMissesThreshold(params.getMPPRRetryThreshold());
+	}
+}

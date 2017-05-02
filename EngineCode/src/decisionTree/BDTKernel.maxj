@@ -1,0 +1,34 @@
+package decisionTree;
+
+import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelParameters;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEType;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+
+public class BDTKernel extends Kernel{
+
+	DFEType t = dfeFloat(8, 24);
+
+	public BDTKernel(KernelParameters params, BDTParams bdtParams, BaseTree[] baseTrees){
+		super(params);
+		int nTrees = baseTrees.length;
+		DFEDecisionTree[] ensemble = new DFEDecisionTree[nTrees];
+		for(int i = 0; i < nTrees; i++){
+			ensemble[i] = new DFEDecisionTree(this, baseTrees[i], bdtParams.Tscore);
+			ensemble[i].learningRate(bdtParams.learningRate); // Set the learning rate to push calc. to constants
+		}
+		DFEBDT bdt = new DFEBDT(this, ensemble, bdtParams);
+
+		DFEVar[] X = new DFEVar[bdtParams.nFeatures];
+		for(int i = 0; i < bdtParams.nFeatures; i++){
+			X[i] = io.input("X"+i, bdtParams.TX[i]);
+			X[i].simWatch("X"+i);
+		}
+
+		DFEVar score = bdt.decisionFunction(X);
+		score.simWatch("score");
+
+		io.output("score", score, bdtParams.Tscore);
+	}
+
+}

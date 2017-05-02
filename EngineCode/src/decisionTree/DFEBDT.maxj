@@ -1,0 +1,38 @@
+package decisionTree;
+
+import tree.Tree;
+
+import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelLib;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+
+public class DFEBDT extends KernelLib{
+
+	Kernel kernel;
+	DFEDecisionTree[] ensemble;
+	BDTParams bdtParams;
+	DFEVar[] scores;
+
+	public DFEBDT(Kernel kernel, DFEDecisionTree[] trees, BDTParams bdtParams){
+		// Construct a BDT from an ensemble of trees
+		super(kernel);
+		this.kernel = kernel;
+		this.ensemble = trees;
+		this.bdtParams = bdtParams;
+	}
+
+	public DFEVar decisionFunction(DFEVar[] X){
+		// Calculate decision function for each tree, then sum
+		DFEVar[] scores = new DFEVar[bdtParams.nTrees + 1];
+		for(int i = 0; i < bdtParams.nTrees; i++){
+			scores[i] = ensemble[i].decisionFunction(X);
+
+		}
+		// Add the pre-score
+		scores[bdtParams.nTrees] = constant.var(bdtParams.Tscore, bdtParams.initPredict);
+		Tree addTree = new Tree(this, scores);
+		// Sum the individual scores
+		DFEVar score = addTree.sum();
+		return score;
+	}
+}
