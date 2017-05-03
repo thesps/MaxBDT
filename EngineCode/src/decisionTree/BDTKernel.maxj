@@ -2,12 +2,9 @@ package decisionTree;
 
 import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
 import com.maxeler.maxcompiler.v2.kernelcompiler.KernelParameters;
-import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEType;
 import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
 
 public class BDTKernel extends Kernel{
-
-	DFEType t = dfeFloat(8, 24);
 
 	public BDTKernel(KernelParameters params, BDTParams bdtParams, BaseTree[] baseTrees){
 		super(params);

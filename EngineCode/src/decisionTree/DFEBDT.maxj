@@ -1,5 +1,6 @@
 package decisionTree;
 
+import misc.FanOut;
 import tree.Tree;
 
 import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
@@ -22,10 +23,19 @@ public class DFEBDT extends KernelLib{
 	}
 
 	public DFEVar decisionFunction(DFEVar[] X){
+		// Fan-out the variable X nTrees times
+		DFEVar[][] XFanned = new DFEVar[bdtParams.nTrees][bdtParams.nFeatures];
+		for(int i = 0; i < bdtParams.nFeatures; i++){
+			DFEVar[] XiFanned = new DFEVar[bdtParams.nTrees];
+			XiFanned = new FanOut<DFEVar>(this.kernel, X[i], bdtParams.nTrees).xFanned(XiFanned);
+			for(int j = 0; j < bdtParams.nTrees; j++){
+				XFanned[j][i] = XiFanned[i];
+			}
+		}
 		// Calculate decision function for each tree, then sum
 		DFEVar[] scores = new DFEVar[bdtParams.nTrees + 1];
 		for(int i = 0; i < bdtParams.nTrees; i++){
-			scores[i] = ensemble[i].decisionFunction(X);
+			scores[i] = ensemble[i].decisionFunction(XFanned[i]);
 
 		}
 		// Add the pre-score
