@@ -1,0 +1,85 @@
+package decisionTree;
+
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEType;
+
+public class TreeReader {
+
+	private final BaseTree[] baseTrees;
+	private final BDTParams bdtParams;
+
+	public TreeReader(String filename){
+		// Read the BDT from the JSON file
+		JSONParser parser = new JSONParser();
+		BaseTree[] baseTrees = new BaseTree[1];
+		int nTrees = 0;
+		int nFeatures = 0;
+		double learningRate = 0.;
+		double initPredict = 0.;
+		try {
+			Object obj = parser.parse(new FileReader(filename));
+			JSONObject jsonObj = (JSONObject) obj;
+			JSONArray trees = (JSONArray) jsonObj.get("trees");
+			nTrees = trees.size();
+			nFeatures = (int) (long) (Long) jsonObj.get("nFeatures");
+			learningRate = (Double) jsonObj.get("learningRate");
+			initPredict = (Double) jsonObj.get("initPredict");
+			baseTrees = new BaseTree[nTrees];
+			System.out.println("Building " + nTrees + " trees");
+			for(int j = 0; j < nTrees; j++){
+				JSONObject tree = (JSONObject) trees.get(j);
+				JSONArray Jfeatures = (JSONArray) tree.get("features");
+				JSONArray JchildrenLeft = (JSONArray) tree.get("childrenLeft");
+				JSONArray JchildrenRight = (JSONArray) tree.get("childrenRight");
+				JSONArray Jvalues = (JSONArray) tree.get("values");
+				JSONArray Jthresholds = (JSONArray) tree.get("thresholds");
+				int nNodes = Jfeatures.size();
+				int[] features = new int[nNodes];
+				int[] childrenLeft = new int[nNodes];
+				int[] childrenRight = new int[nNodes];
+				double[] thresholds = new double[nNodes];
+				double[] values = new double[nNodes];
+				for(int i = 0; i < nNodes; i++){
+					features[i] = (int) (long)(Long) Jfeatures.get(i);
+					childrenLeft[i] = (int) (long) (Long) JchildrenLeft.get(i);
+					childrenRight[i] = (int) (long)(Long) JchildrenRight.get(i);
+					values[i] = (Double) Jvalues.get(i);
+					thresholds[i] = (Double) Jthresholds.get(i);
+				}
+				baseTrees[j] = new BaseTree(features, childrenLeft, childrenRight, thresholds, values);
+				/*if(j < 5){
+					for(int k = 0; k < values.length; k++){
+						System.out.print(values[k] + ", ");
+					}
+					System.out.print("\n");
+				}*/
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
+
+		this.baseTrees = baseTrees;
+		this.bdtParams = new BDTParams(nTrees, nFeatures, learningRate, initPredict, new DFEType[]{null}, null);
+
+	}
+
+	public BaseTree[] baseTrees(){
+		return this.baseTrees;
+	}
+
+	public BDTParams bdtParams(){
+		return this.bdtParams;
+	}
+}
