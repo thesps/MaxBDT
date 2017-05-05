@@ -1,7 +1,8 @@
 package decisionTree;
 
-import misc.FanOut;
-import tree.Tree;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
 import com.maxeler.maxcompiler.v2.kernelcompiler.KernelLib;
@@ -26,8 +27,9 @@ public class DFEBDT extends KernelLib{
 		// Fan-out the variable X nTrees times
 		DFEVar[][] XFanned = new DFEVar[bdtParams.nTrees][bdtParams.nFeatures];
 		for(int i = 0; i < bdtParams.nFeatures; i++){
-			DFEVar[] XiFanned = new DFEVar[bdtParams.nTrees];
-			XiFanned = new FanOut<DFEVar>(this.kernel, X[i], bdtParams.nTrees).xFanned(XiFanned);
+			//DFEVar[] XiFanned = new DFEVar[bdtParams.nTrees];
+			//XiFanned = new FanOut<DFEVar>(this.kernel, X[i], bdtParams.nTrees).xFanned(XiFanned);
+			ArrayList<DFEVar> XiFanned = FanOut(X[i], bdtParams.nTrees, 5);
 			for(int j = 0; j < bdtParams.nTrees; j++){
 				XFanned[j][i] = XiFanned[i];
 			}
@@ -40,9 +42,64 @@ public class DFEBDT extends KernelLib{
 		}
 		// Add the pre-score
 		scores[bdtParams.nTrees] = constant.var(bdtParams.Tscore, bdtParams.initPredict);
-		Tree addTree = new Tree(this, scores);
 		// Sum the individual scores
-		DFEVar score = addTree.sum();
+		DFEVar score = treeSum(scores);
 		return score;
 	}
+
+	private ArrayList<DFEVar> FanOut(DFEVar x, int n, int maxFanOut){
+		ArrayList<DFEVar> xFanned = new ArrayList<DFEVar>(n);
+		if(n < maxFanOut){
+			for(int i = 0; i < n; i++){
+				xFanned.add(x);
+			}
+		}else{
+			int nPerFan = (int) Math.floor(n / maxFanOut);
+			List<List<DFEVar>> xPartials = new ArrayList<List<DFEVar>>(nPerFan);
+			List<DFEVar> xFannedLocal = new ArrayList<DFEVar>(maxFanOut);
+			for(int i = 0; i < maxFanOut; i++){
+				xFannedLocal.add(kernel.optimization.pipeline(x));
+			}
+			for(int i = 0; i < maxFanOut; i++){
+				if(i == maxFanOut - 1){
+					xPartials.add(FanOut(xFannedLocal[i], n - i * nPerFan, maxFanOut));
+				}else{
+					xPartials.add(FanOut(xFannedLocal[i], nPerFan, maxFanOut));
+				}
+			}
+			for(List<DFEVar> xPartial : xPartials){
+				for(DFEVar xP : xPartial){
+					xFanned.add(xP);
+				}
+			}
+		}
+		return xFanned;
+	}
+
+    private DFEVar treeSum(DFEVar[] x){
+        if(x.length == 0){
+                throw new IllegalArgumentException();
+        }else if(x.length == 1){
+                return x[0];
+        }else if(isIntPow2(x.length)){
+                return (treeSum(Arrays.copyOfRange(x, 0, x.length/2)) + treeSum(Arrays.copyOfRange(x, x.length/2, x.length)));
+        }else{
+                return (treeSum(Arrays.copyOfRange(x, 0, (int)Math.pow(2, floorPow2(x.length)))) + treeSum(Arrays.copyOfRange(x, (int)Math.pow(2, floorPow2(x.length)), x.length)));
+        }
+    }
+
+    private boolean isIntPow2(int n){
+        return !((pow2(n) - floorPow2(n)) > 1e-10);
+    }
+
+    /* Function returns log_2(n) rounding down */
+    private int floorPow2(int n){
+        if(n <= 0) throw new IllegalArgumentException();
+        return 31 - Integer.numberOfLeadingZeros(n);
+    }
+
+    /* Function returns log_2(n) */
+    private float pow2(int n){
+        return (float) (Math.log(n)/Math.log(2));
+    }
 }

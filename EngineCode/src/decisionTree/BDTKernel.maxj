@@ -22,7 +22,6 @@ public class BDTKernel extends Kernel{
 		}
 
 		DFEVar score = bdt.decisionFunction(X);
-		score.simWatch("score");
 
 		io.output("score", score, bdtParams.Tscore);
 	}
