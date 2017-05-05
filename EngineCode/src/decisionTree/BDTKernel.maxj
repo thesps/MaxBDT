@@ -19,7 +19,6 @@ public class BDTKernel extends Kernel{
 		DFEVar[] X = new DFEVar[bdtParams.nFeatures];
 		for(int i = 0; i < bdtParams.nFeatures; i++){
 			X[i] = io.input("X"+i, bdtParams.TX[i]);
-			X[i].simWatch("X"+i);
 		}
 
 		DFEVar score = bdt.decisionFunction(X);
