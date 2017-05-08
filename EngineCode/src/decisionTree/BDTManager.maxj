@@ -2,6 +2,7 @@ package decisionTree;
 
 import com.maxeler.maxcompiler.v2.build.EngineParameters;
 import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEFix.SignMode;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEType;
 import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFETypeFactory;
 import com.maxeler.maxcompiler.v2.managers.custom.CustomManager;
 import com.maxeler.maxcompiler.v2.managers.custom.DFELink;
@@ -12,13 +13,16 @@ import com.maxeler.maxcompiler.v2.managers.engine_interfaces.InterfaceParam;
 
 public class BDTManager extends CustomManager{
 
+	public static DFEType TX = DFETypeFactory.dfeFix(8, 24, SignMode.TWOSCOMPLEMENT);
+	public static DFEType Tscore = DFETypeFactory.dfeFix(16, 16, SignMode.TWOSCOMPLEMENT);
+
 	public static void main(String[] args){
 		EngineParameters params = new EngineParameters(args);
 
 		// Read the BDT from the JSON file
 		TreeReader reader = new TreeReader("../CPUCode/bdtjson.txt");
 		BDTParams p = reader.bdtParams();
-		BDTParams bdtParams = new BDTParams(p.nTrees, p.nFeatures, p.learningRate, p.initPredict, DFETypeFactory.dfeFix(8, 24, SignMode.TWOSCOMPLEMENT), DFETypeFactory.dfeFix(16, 16, SignMode.TWOSCOMPLEMENT));
+		BDTParams bdtParams = new BDTParams(p.nTrees, p.nFeatures, p.learningRate, p.initPredict, TX, Tscore);
 		BDTManager manager = new BDTManager(params, bdtParams, reader.baseTrees());
 		manager.createSLiCinterface(interfaceDefault(bdtParams));
 		manager.build();
@@ -28,11 +32,8 @@ public class BDTManager extends CustomManager{
 		super(engineParams);
 		getCurrentKernelConfig().debug.setEnableLatencyAnnotation(true);
 		KernelBlock bdtKernel = addKernel(new BDTKernel(makeKernelParameters("BDTKernel"), bdtParams, baseTrees));
-		DFELink[] X = new DFELink[bdtParams.nFeatures];
-		for(int i = 0; i < bdtParams.nFeatures; i++){
-			X[i] = addStreamFromCPU("X"+i);
-			bdtKernel.getInput("X"+i) <== X[i];
-		}
+		DFELink X = addStreamFromCPU("X");
+		bdtKernel.getInput("X") <== X;
 
 		DFELink score = addStreamToCPU("score");
 		score <== bdtKernel.getOutput("score");
@@ -47,9 +48,7 @@ public class BDTManager extends CustomManager{
 
 		InterfaceParam N = engine_interface.addParam("N", CPUTypes.INT32);
 		engine_interface.setTicks("BDTKernel", N);
-		for(int i = 0; i < bdtParams.nFeatures; i++){
-			engine_interface.setStream("X"+i,   tX, N * sizeX);
-		}
+		engine_interface.setStream("X",   tX, bdtParams.nFeatures * N * sizeX);
 		engine_interface.setStream("score",   tScore, N * sizeScore);
 		return engine_interface;
 	}

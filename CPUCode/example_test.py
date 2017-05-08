@@ -7,6 +7,7 @@ import numpy as np
 from DFEBDT import DFEBDT
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+from itertools import chain, izip
 
 X, y = make_moons(noise=0.3, random_state=0)
 
@@ -25,7 +26,8 @@ xx, yy = np.meshgrid(np.arange(x_min, x_max, dx),
                      np.arange(y_min, y_max, dy))
 
 # Convert features to fixed point format and run on DFE
-Z_DFE = DFEBDT((xx.ravel() * 2**24).astype('int').tolist(), (yy.ravel() * 2**24).astype('int').tolist())
+Z_DFE = DFEBDT(n * n, (np.array(list(chain.from_iterable(izip(xx.ravel(), yy.ravel())))) * 2**24).astype('int').tolist())
+#Z_DFE = DFEBDT((xx.ravel() * 2**24).astype('int').tolist(), (yy.ravel() * 2**24).astype('int').tolist())
 Z_DFE = (np.array(Z_DFE) * 2**-16).reshape(xx.shape)
 # Run on CPU
 Z_CPU = bdt.decision_function(np.c_[xx.ravel(), yy.ravel()])
