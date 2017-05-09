@@ -44,6 +44,11 @@ ax.scatter(X_train[:, 0], X_train[:, 1], c=y_train, cmap=cm_bright)
 # and testing points
 ax.scatter(X_test[:, 0], X_test[:, 1], c=y_test, cmap=cm_bright, alpha=0.6)
 
+ax.set_xlim(xx.min(), xx.max())
+ax.set_ylim(yy.min(), yy.max())
+ax.set_xticks(())
+ax.set_yticks(())
+
 # Repeat for CPU
 ax = plt.subplot(1, 2, 2)
 ax.contourf(xx, yy, Z_CPU, cmap=cm, alpha=.8)
@@ -53,5 +58,11 @@ ax.scatter(X_train[:, 0], X_train[:, 1], c=y_train, cmap=cm_bright)
 # and testing points
 ax.scatter(X_test[:, 0], X_test[:, 1], c=y_test, cmap=cm_bright, alpha=0.6)
 
+ax.set_xlim(xx.min(), xx.max())
+ax.set_ylim(yy.min(), yy.max())
+ax.set_xticks(())
+ax.set_yticks(())
+
+plt.tight_layout()
 plt.show()
 
