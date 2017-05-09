@@ -2,7 +2,6 @@ from sklearn.datasets import make_moons
 from sklearn.externals import joblib
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.model_selection import train_test_split
-import bitstring as bs
 import numpy as np
 from DFEBDT import DFEBDT
 import matplotlib.pyplot as plt

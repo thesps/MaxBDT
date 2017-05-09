@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="Classifier_EngineCode_build_script" default="all" basedir="../../EngineCode">
+    <property environment="env"/>
+    <taskdef name="maxjcompiler" classname="org.eclipse.jdt.core.ant.taskdef.MaxjTask" classpath="${env.MAXCOMPILERDIR}/lib/MaxIDE/ecj.jar" onerror="ignore"/>
+    <condition property="maxcompilerdirpath" value="${env.MAXCOMPILERJCP}">
+        <isset property="env.MAXCOMPILERJCP"/>
+    </condition>
+    <condition property="maxcompilerdirpath" value="${env.MAXCOMPILERDIR}/lib/MaxCompiler.jar">
+        <not>
+            <isset property="maxcompilerdirpath"/>
+        </not>
+    </condition>
+    <target name="all" depends="build"/>
+    <condition property="EnvClassPath" value="${env.CLASSPATH}">
+        <isset property="env.CLASSPATH"/>
+    </condition>
+    <condition property="maxcompilernetdirpath" value="${env.MAXCOMPILERNETDIR}/lib/MaxCompilerNet.jar">
+        <isset property="env.MAXCOMPILERNETDIR"/>
+    </condition>
+    <path id="maxclasspath">
+        <pathelement path="${maxcompilerdirpath}"/>
+        <pathelement path="../../json-simple-1.1.1.jar"/>
+        <pathelement path="../../maxpower/bin"/>
+        <pathelement path="${EnvClassPath}"/>
+    </path>
+    <path id="maxnetclasspath">
+        <pathelement path="${maxcompilernetdirpath}"/>
+        <path refid="maxclasspath"/>
+    </path>
+    <property name="maxclasspath" refid="maxclasspath"/>
+    <property name="maxnetclasspath" refid="maxnetclasspath"/>
+    <condition property="finalclasspath" value="${maxnetclasspath}">
+        <isset property="maxcompilernetdirpath"/>
+    </condition>
+    <condition property="finalclasspath" value="${maxclasspath}">
+        <not>
+            <isset property="${finalclasspath}"/>
+        </not>
+    </condition>
+    <target name="clean">
+        <delete dir="../RunRules/Maia/dist"/>
+    </target>
+    <target name="build" depends="clean">
+        <fail unless="env.MAXCOMPILERDIR" message="MAXCOMPILERDIR environment variable is not defined"/>
+        <mkdir dir="../RunRules/Maia/dist"/>
+        <mkdir dir="../RunRules/Maia/dist/bin"/>
+        <copy includeemptydirs="false" todir="../RunRules/Maia/dist/bin">
+            <fileset dir="src" excludes="**/*.uad, **/*.ucd, **/*.uld, **/*.upd, **/*.udd, **/*.uod, **/*.usd, **/*.utd, **/*.uud, **/*.odd, **/*.ead, **/*.ecd, **/*.eld, **/*.epd, **/*.edd, **/*.eod, **/*.esd, **/*.etd, **/*.eud, **/*.urd*.uml, **/*.ecore, **/*.launch, **/*.java, **/*.maxj, **/package.html"/>
+        </copy>
+        <maxjcompiler srcdir="src" destdir="../RunRules/Maia/dist/bin" debug="true" debuglevel="lines,vars,source" source="1.6" target="1.6" failonerror="true">
+            <classpath>
+                <pathelement path="${finalclasspath}"/>
+            </classpath>
+        </maxjcompiler>
+    </target>
+</project>
