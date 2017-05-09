@@ -23,6 +23,7 @@ Compare the sklearn `GradientBoostingClassifier.decision_function` output to the
 cd CPUCode
 python example_test.py
 ```
+![DFE/sklearn decision contour](CPUCode/DFE_sklearn_comparison.png)
 
 ## Custom Project
 To make your own low latency BDT predictions, first of all train a BDT with sklearn, and write the JSON file:
