@@ -1,0 +1,110 @@
+package decisionTree;
+
+public class BDTTestUtils {
+
+
+	private static class Node{
+		int i;
+		int feature;
+		double threshold;
+		double value;
+		Node childLeft;
+		Node childRight;
+		Node parent;
+
+		public Node(Node parent, int i, int feature, double threshold, double value){
+			this.parent = parent;
+			this.i = i; // index in tree structure
+			this.feature = feature;
+			this.threshold = threshold;
+			this.value = value;
+		}
+
+		boolean isLeaf(){
+			return (this.childLeft == null) && (this.childRight == null);
+		}
+
+		public static Node addChildLeftFirst(Node parent, Tree tree){
+			int iC; // child index in basetree
+			Node newNode = parent;
+			if(parent.childLeft == null){
+				iC = tree.baseTree.childrenLeft[parent.i];
+				if(iC != -1){
+					newNode = new Node(parent, iC, tree.baseTree.features[iC], tree.baseTree.thresholds[iC], tree.baseTree.values[iC]);
+					parent.childLeft = newNode;
+				}
+			}else if(parent.childRight == null){
+				iC = tree.baseTree.childrenRight[parent.i];
+				if(iC != -1){
+					newNode = new Node(parent, iC, tree.baseTree.features[iC], tree.baseTree.thresholds[iC], tree.baseTree.values[iC]);
+					parent.childRight = newNode;
+				}
+			}
+			return newNode;
+		}
+	}
+
+	public static class Tree{
+		private final Node[] nodes;
+		BaseTree baseTree;
+
+		public Tree(BaseTree baseTree){
+			this.baseTree = baseTree;
+			this.nodes = constructTree();
+		}
+
+		public double decisionFunction(double[] X){
+			Node n = nodes[0]; // Start at the root
+			while(!n.isLeaf()){
+				if(X[n.feature] <= n.threshold){
+					n = n.childLeft;
+				}else{
+					n = n.childRight;
+				}
+			}
+			return n.value;
+		}
+
+		private Node[] constructTree(){
+			int iN = 0;
+			Node[] nodes = new Node[baseTree.childrenLeft.length];
+			Node n = new Node(null, iN, baseTree.features[iN], baseTree.thresholds[iN], baseTree.values[iN]);
+			nodes[0] = n;
+			boolean done = false;
+			while(!done){
+				if((n.i== 0) && (n.childLeft != null) && (n.childRight != null)){
+					// At the root node with both children, so done
+					done = true;
+					break;
+				}
+				if((baseTree.childrenLeft[n.i] == -1) | ((n.childLeft != null) && (n.childRight != null))) // Need to ascend
+					n = n.parent;
+				Node lastN = n;
+				n = Node.addChildLeftFirst(n, this);
+				if(n != lastN){ // A new node was added
+					nodes[++iN] = n;
+				}
+			}
+			return nodes;
+		}
+	}
+
+	public static class BDT{
+		Tree[] ensemble;
+		BDTParams bdtParams;
+
+		public BDT(Tree[] trees, BDTParams bdtParams){
+			// Construct a BDT from an ensemble of trees
+			this.ensemble = trees;
+			this.bdtParams = bdtParams;
+		}
+
+		public double decisionFunction(double[] X){
+			double score = bdtParams.initPredict;
+			for(int i = 0; i < bdtParams.nTrees; i++){
+				score += ensemble[i].decisionFunction(X) * bdtParams.learningRate;
+			}
+			return score;
+		}
+	}
+}

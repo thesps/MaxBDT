@@ -1,0 +1,136 @@
+package decisionTree;
+
+import static org.junit.Assert.assertArrayEquals;
+
+import java.util.Random;
+
+import org.junit.Test;
+
+import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelParameters;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEType;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFETypeFactory;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVectorType;
+import com.maxeler.maxcompiler.v2.managers.standard.SimulationManager;
+import com.maxeler.maxcompiler.v2.utils.Bits;
+
+public class BDTTest {
+
+	private static final String bdtfile = "./test/decisionTree/testjson.txt";
+
+	private static final int N = 1000;
+	private static final double x0_min = -2.5;
+	private static final double x0_max = 2.5;
+	private static final double x1_min = -2.5;
+	private static final double x1_max = 2.5;
+
+	private static DFEType TX = DFETypeFactory.dfeFloat(8, 24);
+	private static DFEType Tscore = DFETypeFactory.dfeFloat(8, 24);
+
+	private static class OneTreeTestKernel extends Kernel{
+
+		public DFEVectorType<DFEVar> TXV;
+
+		public OneTreeTestKernel(KernelParameters parameters, BDTParams bdtParams, BaseTree baseTree){
+			super(parameters);
+
+			DFEDecisionTree tree = new DFEDecisionTree(this, baseTree, bdtParams.Tscore);
+
+			// Input the features
+			DFEVectorType<DFEVar> Xvt = new DFEVectorType<DFEVar>(bdtParams.TX[0], bdtParams.nFeatures); // note assumes all features have same type
+			this.TXV = Xvt;
+			DFEVector<DFEVar> Xv = io.input("X", Xvt);
+
+			DFEVar[] X = new DFEVar[bdtParams.nFeatures];
+			for(int i = 0; i < bdtParams.nFeatures; i++){
+				X[i] = Xv.get(i);
+				X[i].simWatch("X"+i);
+			}
+
+			DFEVar score = tree.decisionFunction(X);
+			io.output("score", score, bdtParams.Tscore);
+		}
+	}
+
+
+	@Test public void testTree(){
+		System.out.println(System.getProperty("user.dir"));
+		TreeReader reader = new TreeReader(bdtfile);
+		BDTParams p = reader.bdtParams();
+		BDTParams bdtParams = new BDTParams(p.nTrees, p.nFeatures, p.learningRate, p.initPredict, TX, Tscore);
+
+		SimulationManager m = new SimulationManager("OneTreeTest");
+		//m.setKernel(new BDTKernel(m.makeKernelParameters(), bdtParams, reader.baseTrees()));
+		OneTreeTestKernel kernel = new OneTreeTestKernel(m.makeKernelParameters(), bdtParams, reader.baseTrees()[0]);
+		m.setKernel(kernel);
+		m.build();
+
+		BDTTestUtils.Tree[] trees = new BDTTestUtils.Tree[bdtParams.nTrees];
+		for(int i = 0; i < bdtParams.nTrees; i++)
+			trees[i] = new BDTTestUtils.Tree(reader.baseTrees()[i]);
+
+		long seed = System.currentTimeMillis();
+		m.logMsg("Using random seed: %d", seed);
+		Random rng = new Random(seed);
+
+		double[] expectedScore = new double[N];
+		Bits[] input = new Bits[N];
+		for(int i = 0; i < N; i++){
+			double x0 = rng.nextDouble() * (x0_max - x0_min) + x0_min;
+			double x1 = rng.nextDouble() * (x1_max - x1_min) + x1_min;
+			double[] X = new double[]{x0, x1};
+			expectedScore[i] = (float) trees[0].decisionFunction(X);
+			input[i] = kernel.TXV.encodeConstant(X);
+		}
+
+		m.setKernelCycles(N);
+		m.setInputDataRaw("X", input);
+		m.run();
+
+		double[] actualScore = m.getOutputDataArray("score");
+
+		assertArrayEquals("score", expectedScore, actualScore, 0);
+	}
+
+	@Test public void testBDT(){
+		TreeReader reader = new TreeReader(bdtfile);
+		BDTParams p = reader.bdtParams();
+		BDTParams bdtParams = new BDTParams(p.nTrees, p.nFeatures, p.learningRate, p.initPredict, TX, Tscore);
+
+		SimulationManager m = new SimulationManager("BDTTest");
+		m.setKernel(new BDTKernel(m.makeKernelParameters(), bdtParams, reader.baseTrees()));
+		m.build();
+		DFEVectorType<DFEVar> TXV = new DFEVectorType<DFEVar>(bdtParams.TX[0], bdtParams.nFeatures); // note assumes all features have same type
+
+
+		BDTTestUtils.Tree[] trees = new BDTTestUtils.Tree[bdtParams.nTrees];
+		for(int i = 0; i < bdtParams.nTrees; i++)
+			trees[i] = new BDTTestUtils.Tree(reader.baseTrees()[i]);
+		BDTTestUtils.BDT bdt = new BDTTestUtils.BDT(trees, bdtParams);
+
+		long seed = System.currentTimeMillis();
+		m.logMsg("Using random seed: %d", seed);
+		Random rng = new Random(seed);
+
+		double[] expectedScore = new double[N];
+		Bits[] input = new Bits[N];
+		for(int i = 0; i < N; i++){
+			double x0 = rng.nextDouble() * (x0_max - x0_min) + x0_min;
+			double x1 = rng.nextDouble() * (x1_max - x1_min) + x1_min;
+			double[] X = new double[]{x0, x1};
+			expectedScore[i] = (float) bdt.decisionFunction(X);
+			input[i] = TXV.encodeConstant(X);
+		}
+
+		m.setKernelCycles(N);
+		m.setInputDataRaw("X", input);
+		m.run();
+
+		double[] actualScore = m.getOutputDataArray("score");
+
+		assertArrayEquals("score", expectedScore, actualScore, 1e-5);
+	}
+
+}
