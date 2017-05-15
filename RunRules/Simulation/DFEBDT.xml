@@ -21,6 +21,8 @@
         <pathelement path="${maxcompilerdirpath}"/>
         <pathelement path="../../json-simple-1.1.1.jar"/>
         <pathelement path="../../maxpower/bin"/>
+        <pathelement path="/home/Maxeler/lib/MaxIDE/plugins/org.junit_4.8.1.v4_8_1_v20100427-1100/junit.jar"/>
+        <pathelement path="/home/Maxeler/lib/MaxIDE/plugins/org.hamcrest.core_1.1.0.v20090501071000.jar"/>
         <pathelement path="${EnvClassPath}"/>
     </path>
     <path id="maxnetclasspath">
@@ -48,7 +50,7 @@
             </not>
         </condition>
         <java classname="decisionTree.BDTManager" fork="true" failonerror="false" resultproperty="java.result">
-            <env key="MAXSOURCEDIRS" value="src"/>
+            <env key="MAXSOURCEDIRS" value="src:test"/>
             <jvmarg value="-Xmx2048m"/>
             <arg line="${args}"/>
             <classpath>

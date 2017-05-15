@@ -21,6 +21,8 @@
         <pathelement path="${maxcompilerdirpath}"/>
         <pathelement path="../../json-simple-1.1.1.jar"/>
         <pathelement path="../../maxpower/bin"/>
+        <pathelement path="/home/Maxeler/lib/MaxIDE/plugins/org.junit_4.8.1.v4_8_1_v20100427-1100/junit.jar"/>
+        <pathelement path="/home/Maxeler/lib/MaxIDE/plugins/org.hamcrest.core_1.1.0.v20090501071000.jar"/>
         <pathelement path="${EnvClassPath}"/>
     </path>
     <path id="maxnetclasspath">
@@ -46,8 +48,9 @@
         <mkdir dir="../RunRules/Simulation/dist/bin"/>
         <copy includeemptydirs="false" todir="../RunRules/Simulation/dist/bin">
             <fileset dir="src" excludes="**/*.uad, **/*.ucd, **/*.uld, **/*.upd, **/*.udd, **/*.uod, **/*.usd, **/*.utd, **/*.uud, **/*.odd, **/*.ead, **/*.ecd, **/*.eld, **/*.epd, **/*.edd, **/*.eod, **/*.esd, **/*.etd, **/*.eud, **/*.urd*.uml, **/*.ecore, **/*.launch, **/*.java, **/*.maxj, **/package.html"/>
+            <fileset dir="test" excludes="**/*.uad, **/*.ucd, **/*.uld, **/*.upd, **/*.udd, **/*.uod, **/*.usd, **/*.utd, **/*.uud, **/*.odd, **/*.ead, **/*.ecd, **/*.eld, **/*.epd, **/*.edd, **/*.eod, **/*.esd, **/*.etd, **/*.eud, **/*.urd*.uml, **/*.ecore, **/*.launch, **/*.java, **/*.maxj, **/package.html"/>
         </copy>
-        <maxjcompiler srcdir="src" destdir="../RunRules/Simulation/dist/bin" debug="true" debuglevel="lines,vars,source" source="1.6" target="1.6" failonerror="true">
+        <maxjcompiler srcdir="src:test" destdir="../RunRules/Simulation/dist/bin" debug="true" debuglevel="lines,vars,source" source="1.6" target="1.6" failonerror="true">
             <classpath>
                 <pathelement path="${finalclasspath}"/>
             </classpath>

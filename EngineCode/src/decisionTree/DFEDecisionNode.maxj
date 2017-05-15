@@ -1,5 +1,9 @@
 package decisionTree;
 
+import java.util.List;
+
+import maxpower.kernel.pipeline.FanoutLimiter;
+
 import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
 import com.maxeler.maxcompiler.v2.kernelcompiler.KernelLib;
 import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
@@ -43,6 +47,15 @@ public class DFEDecisionNode extends KernelLib{
 		// Only make the comparison once, and only make it for non-leaves
 		if((!this.isLeaf()) && (this.comparison == null)){
 			this.comparison = X[this.feature] <= this.threshold;
+			this.Ncomparison = ~this.comparison;
+		}
+		return this.comparison;
+	}
+
+	public DFEVar nodeOnlyCompare(List<FanoutLimiter<DFEVar>> X){
+		// Only make the comparison once, and only make it for non-leaves
+		if((!this.isLeaf()) && (this.comparison == null)){
+			this.comparison = X[this.feature].get() <= this.threshold;
 			this.Ncomparison = ~this.comparison;
 		}
 		return this.comparison;

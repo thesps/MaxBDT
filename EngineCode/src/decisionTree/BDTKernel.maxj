@@ -23,12 +23,12 @@ public class BDTKernel extends Kernel{
 		DFEVectorType<DFEVar> Xvt = new DFEVectorType<DFEVar>(bdtParams.TX[0], bdtParams.nFeatures); // note assumes all features have same type
 		DFEVector<DFEVar> Xv = io.input("X", Xvt);
 
-		DFEVar[] X = new DFEVar[bdtParams.nFeatures];
+		/*DFEVar[] X = new DFEVar[bdtParams.nFeatures];
 		for(int i = 0; i < bdtParams.nFeatures; i++){
 			X[i] = Xv.get(i);
-		}
+		}*/
 
-		DFEVar score = bdt.decisionFunction(X);
+		DFEVar score = bdt.decisionFunction(Xv);
 
 		io.output("score", score, bdtParams.Tscore);
 	}

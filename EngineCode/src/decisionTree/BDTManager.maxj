@@ -4,6 +4,7 @@ import com.maxeler.maxcompiler.v2.build.EngineParameters;
 import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEFix.SignMode;
 import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEType;
 import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFETypeFactory;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig;
 import com.maxeler.maxcompiler.v2.managers.custom.CustomManager;
 import com.maxeler.maxcompiler.v2.managers.custom.DFELink;
 import com.maxeler.maxcompiler.v2.managers.custom.blocks.KernelBlock;
@@ -25,11 +26,16 @@ public class BDTManager extends CustomManager{
 		BDTParams bdtParams = new BDTParams(p.nTrees, p.nFeatures, p.learningRate, p.initPredict, TX, Tscore);
 		BDTManager manager = new BDTManager(params, bdtParams, reader.baseTrees());
 		manager.createSLiCinterface(interfaceDefault(bdtParams));
+		BuildConfig bc = new BuildConfig(manager.getBuildConfig().getBuildLevel());
+		//bc.setMPPRParallelism(4);
+		bc.setMPPRCostTableSearchRange(1, 4);
+		manager.setBuildConfig(bc);
 		manager.build();
 	}
 
 	public BDTManager(EngineParameters engineParams, BDTParams bdtParams, BaseTree[] baseTrees) {
 		super(engineParams);
+		config.setDefaultStreamClockFrequency(500);
 		getCurrentKernelConfig().debug.setEnableLatencyAnnotation(true);
 		KernelBlock bdtKernel = addKernel(new BDTKernel(makeKernelParameters("BDTKernel"), bdtParams, baseTrees));
 		DFELink X = addStreamFromCPU("X");

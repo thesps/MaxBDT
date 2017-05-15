@@ -1,5 +1,8 @@
 package decisionTree;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import maxpower.kernel.KernelBinaryOp.Add;
 import maxpower.kernel.pipeline.FanoutLimiter;
 import maxpower.utils.TreeReduce;
@@ -7,6 +10,7 @@ import maxpower.utils.TreeReduce;
 import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
 import com.maxeler.maxcompiler.v2.kernelcompiler.KernelLib;
 import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
 
 public class DFEBDT extends KernelLib{
 
@@ -25,18 +29,29 @@ public class DFEBDT extends KernelLib{
 
 	public DFEVar decisionFunction(DFEVar[] X){
 		// Fan-out the variable X nTrees times
-		DFEVar[][] XFanned = new DFEVar[bdtParams.nTrees][bdtParams.nFeatures];
+		List<FanoutLimiter<DFEVar>> XFanned = new ArrayList<FanoutLimiter<DFEVar>>();
 		for(int i = 0; i < bdtParams.nFeatures; i++){
-			FanoutLimiter<DFEVar> fanout = new FanoutLimiter<DFEVar>(X[i], 5);
-			for(int j = 0; j < bdtParams.nTrees; j++){
-				XFanned[j][i] = fanout.get();
-			}
+			XFanned.add(new FanoutLimiter<DFEVar>(X[i], 5));
 		}
 		// Calculate decision function for each tree, then sum
 		DFEVar[] scores = new DFEVar[bdtParams.nTrees + 1];
 		for(int i = 0; i < bdtParams.nTrees; i++){
-			scores[i] = ensemble[i].decisionFunction(XFanned[i]);
+			scores[i] = ensemble[i].decisionFunction(XFanned);
 
+		}
+		// Add the pre-score
+		scores[bdtParams.nTrees] = constant.var(bdtParams.Tscore, bdtParams.initPredict);
+		// Sum the individual scores
+		DFEVar score = TreeReduce.reduce(new Add<DFEVar>(), scores);
+		return score;
+	}
+
+	public DFEVar decisionFunction(DFEVector<DFEVar> X){
+		// Fanout the vector to trees
+		FanoutLimiter<DFEVector<DFEVar>> XFanned = new FanoutLimiter<DFEVector<DFEVar>>(X, 5);
+		DFEVar[] scores = new DFEVar[bdtParams.nTrees + 1];
+		for(int i = 0; i < bdtParams.nTrees; i++){
+			scores[i] = ensemble[i].decisionFunction(XFanned);
 		}
 		// Add the pre-score
 		scores[bdtParams.nTrees] = constant.var(bdtParams.Tscore, bdtParams.initPredict);

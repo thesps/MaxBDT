@@ -1,5 +1,10 @@
 package decisionTree;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import maxpower.kernel.pipeline.FanoutLimiter;
+
 import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
 import com.maxeler.maxcompiler.v2.kernelcompiler.KernelLib;
 import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEType;
@@ -34,6 +39,15 @@ public class DFEDecisionTree extends KernelLib{
 		return decisionFunction(x);
 	}
 
+	public DFEVar decisionFunction(FanoutLimiter<DFEVector<DFEVar>> X){
+		// Fanout the features to nodes in the tree
+		DFEVector<DFEVar> Xv = X.get();
+		List<FanoutLimiter<DFEVar>> XFanned = new ArrayList<FanoutLimiter<DFEVar>>();
+		for(int i = 0; i < Xv.getSize(); i++)
+			XFanned.add(new FanoutLimiter<DFEVar>(Xv.get(i), 5));
+		return decisionFunction(XFanned);
+	}
+
 	public DFEVar decisionFunction(DFEVar[] X){
 		for(DFEDecisionNode node : nodes)
 			node.nodeOnlyCompare(X);
@@ -48,7 +62,22 @@ public class DFEDecisionTree extends KernelLib{
 		}
 		this.leafValues = leafValues;
 		return control.oneHotMux(leafDecision, leafValues);
+	}
 
+	public DFEVar decisionFunction(List<FanoutLimiter<DFEVar>> X){
+		for(DFEDecisionNode node : nodes)
+			node.nodeOnlyCompare(X);
+		DFEDecisionNode[] leaves = leaves();
+		DFEVar[] leafValues = new DFEVar[leaves.length];
+		DFEVar leafDecision = leaves[0].depthFirstCompare();
+		for(int i = 0; i < leaves.length; i++){
+			leafValues[leaves.length - i - 1] = constant.var(Tscore, leaves[i].value * this.learningRate);
+			//System.out.println(leaves[i].value);// * this.learningRate);
+			if(i > 0)
+				leafDecision = leafDecision # leaves[i].depthFirstCompare();
+		}
+		this.leafValues = leafValues;
+		return control.oneHotMux(leafDecision, leafValues);
 	}
 
 	public DFEDecisionNode[] leaves(){
