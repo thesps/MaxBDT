@@ -8,8 +8,11 @@ import com.maxeler.maxcompiler.v2.managers.BuildConfig;
 import com.maxeler.maxcompiler.v2.managers.custom.CustomManager;
 import com.maxeler.maxcompiler.v2.managers.custom.DFELink;
 import com.maxeler.maxcompiler.v2.managers.custom.blocks.KernelBlock;
+import com.maxeler.maxcompiler.v2.managers.custom.stdlib.LMemCommandGroup;
+import com.maxeler.maxcompiler.v2.managers.custom.stdlib.LMemInterface;
 import com.maxeler.maxcompiler.v2.managers.engine_interfaces.CPUTypes;
 import com.maxeler.maxcompiler.v2.managers.engine_interfaces.EngineInterface;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.EngineInterface.Direction;
 import com.maxeler.maxcompiler.v2.managers.engine_interfaces.InterfaceParam;
 
 public class BDTManager extends CustomManager{
@@ -26,6 +29,8 @@ public class BDTManager extends CustomManager{
 		BDTParams bdtParams = new BDTParams(p.nTrees, p.nFeatures, p.learningRate, p.initPredict, TX, Tscore);
 		BDTManager manager = new BDTManager(params, bdtParams, reader.baseTrees());
 		manager.createSLiCinterface(interfaceDefault(bdtParams));
+		manager.createSLiCinterface(interfaceRead("readLMem"));
+		manager.createSLiCinterface(interfaceWrite("writeLMem", bdtParams));
 		BuildConfig bc = new BuildConfig(manager.getBuildConfig().getBuildLevel());
 		//bc.setMPPRParallelism(4);
 		bc.setMPPRCostTableSearchRange(1, 4);
@@ -38,11 +43,24 @@ public class BDTManager extends CustomManager{
 		config.setDefaultStreamClockFrequency(500);
 		getCurrentKernelConfig().debug.setEnableLatencyAnnotation(true);
 		KernelBlock bdtKernel = addKernel(new BDTKernel(makeKernelParameters("BDTKernel"), bdtParams, baseTrees));
-		DFELink X = addStreamFromCPU("X");
-		bdtKernel.getInput("X") <== X;
 
-		DFELink score = addStreamToCPU("score");
+		// Set up the LMEM interface...
+		LMemInterface memInterface = addLMemInterface();
+		// ... between CPU & LMEM
+		DFELink cpuToMem = memInterface.addStreamToLMem("cpuToMem", LMemCommandGroup.MemoryAccessPattern.LINEAR_1D);
+		DFELink memToCpu = memInterface.addStreamFromLMem("memToCpu", LMemCommandGroup.MemoryAccessPattern.LINEAR_1D);
+		// ... to/from Kernel
+		DFELink X = memInterface.addStreamFromLMem("X", LMemCommandGroup.MemoryAccessPattern.LINEAR_1D);
+		DFELink score = memInterface.addStreamToLMem("score", LMemCommandGroup.MemoryAccessPattern.LINEAR_1D);
+		// ... to/from CPU
+		DFELink fromCpu = addStreamFromCPU("Xin");
+		DFELink toCpu = addStreamToCPU("scoreOut");
+
+		// Link the links
+		bdtKernel.getInput("X") <== X;
 		score <== bdtKernel.getOutput("score");
+		cpuToMem <== fromCpu;
+		toCpu <== memToCpu;
 	}
 
 	private static EngineInterface interfaceDefault(BDTParams bdtParams) {
@@ -53,9 +71,44 @@ public class BDTManager extends CustomManager{
 		int		   sizeScore = tScore.sizeInBytes();
 
 		InterfaceParam N = engine_interface.addParam("N", CPUTypes.INT32);
+		InterfaceParam XsizeInBytes = N * (bdtParams.nFeatures * sizeX);
+		InterfaceParam scoreSizeInBytes = N * sizeScore;
+		InterfaceParam zero = engine_interface.addConstant(0l);
+
 		engine_interface.setTicks("BDTKernel", N);
-		engine_interface.setStream("X",   tX, bdtParams.nFeatures * N * sizeX);
-		engine_interface.setStream("score",   tScore, N * sizeScore);
+		engine_interface.setLMemLinear("X", zero, XsizeInBytes);
+		engine_interface.setLMemLinear("score", XsizeInBytes, scoreSizeInBytes);
+		engine_interface.ignoreAll(Direction.IN_OUT);
 		return engine_interface;
+	}
+
+	private static EngineInterface interfaceWrite(String name, BDTParams bdtParams){
+		EngineInterface ei = new EngineInterface(name);
+		CPUTypes   tX = CPUTypes.INT32;
+		int        sizeX = tX.sizeInBytes();
+
+		InterfaceParam N = ei.addParam("N", CPUTypes.INT32);
+		InterfaceParam XsizeInBytes = N * (bdtParams.nFeatures * sizeX);
+		InterfaceParam start = ei.addParam("start", CPUTypes.INT32);
+		ei.setLMemLinear("cpuToMem", start * sizeX, XsizeInBytes);
+		ei.setStream("Xin", tX, XsizeInBytes);
+		ei.ignoreAll(Direction.IN_OUT);
+
+		return ei;
+	}
+
+	private static EngineInterface interfaceRead(String name){
+		EngineInterface ei = new EngineInterface(name);
+		CPUTypes   tScore = CPUTypes.INT32;
+		int		   sizeScore = tScore.sizeInBytes();
+
+		InterfaceParam N = ei.addParam("N", CPUTypes.INT32);
+		InterfaceParam XsizeInBytes = N * sizeScore;
+		InterfaceParam start = ei.addParam("start", CPUTypes.INT32);
+		ei.setLMemLinear("memToCpu", start * sizeScore, XsizeInBytes);
+		ei.setStream("scoreOut", tScore, XsizeInBytes);
+		ei.ignoreAll(Direction.IN_OUT);
+
+		return ei;
 	}
 }
